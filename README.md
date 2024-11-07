@@ -1,7 +1,3 @@
-<p align="center">
-    <img src="/art/socialcard.png" alt="Social Card of SyncModelFillable">
-</p>
-
 # SyncModelFillable
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/muzammal/syncmodelfillable.svg?style=flat-square)](https://packagist.org/packages/muzammal/syncmodelfillable)
