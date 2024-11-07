@@ -6,12 +6,6 @@
 
 **SyncModelFillable** is a Laravel package designed to help automatically sync a model's `$fillable` fields with its database migration columns. 🎉 With just a simple Artisan command, you can keep your model properties up-to-date with your migration files effortlessly.
 
-## 📚 Documentation, Installation, and Usage Instructions
-
-For detailed installation and usage instructions, please see the [documentation](https://github.com/muzammal/syncmodelfillable).
-
----
-
 ## ✨ Features
 
 - 🛠️ Syncs model `$fillable` properties with migration columns.
@@ -119,20 +113,6 @@ Would automatically set the `$fillable` fields in `User.php` as follows:
 ```php
 protected $fillable = ['name', 'email', 'password'];
 ```
-
----
-
-## 🤝 Contributing
-
-Please see the [CONTRIBUTING](CONTRIBUTING.md) file for details on how to contribute to this project.
-
----
-
-## 📅 Changelog
-
-Please see the [CHANGELOG](CHANGELOG.md) file for more information on recent changes.
-
----
 
 ## 📜 License
 
