@@ -1,4 +1,3 @@
-```markdown
 <p align="center">
     <img src="/art/socialcard.png" alt="Social Card of SyncModelFillable">
 </p>
@@ -28,16 +27,20 @@ For detailed installation and usage instructions, please see the [documentation]
 ## 🚀 Installation
 
 1. **Install the package via Composer:**
+
     ```bash
     composer require muzammal/syncmodelfillable
     ```
 
 2. **(Optional) Publish the configuration file:**
-   If you'd like to customize which columns are excluded from the `$fillable` fields, publish the configuration file:
-   ```bash
-   php artisan vendor:publish --provider="Muzammal\Syncmodelfillable\SyncModelFillableServiceProvider"
-   ```
-   This will create a `config/syncfillable.php` file where you can specify columns to exclude (such as `created_at`, `updated_at`, etc.).
+
+    If you'd like to customize which columns are excluded from the `$fillable` fields, publish the configuration file:
+
+    ```bash
+    php artisan vendor:publish --provider="Muzammal\Syncmodelfillable\SyncModelFillableServiceProvider"
+    ```
+
+    This will create a `config/syncfillable.php` file where you can specify columns to exclude (such as `created_at`, `updated_at`, etc.).
 
 ---
 
