@@ -138,4 +138,3 @@ Please see the [CHANGELOG](CHANGELOG.md) file for more information on recent cha
 ## 📜 License
 
 This package is open-source software licensed under the MIT license.
-```
