@@ -39,14 +39,14 @@ This package provides an Artisan command `sync:fillable` that lets you sync a mo
 
 ### Sync a Specific Model's `$fillable` Fields
 
-To sync the `$fillable` fields of a specific model, use the command with the model name. For example, if you have a model named `User`:
+To sync the `$fillable` fields of a specific model, use the command with the model name. For example, if you have a model named `Post`:
 
 ```bash
-php artisan sync:fillable User
+php artisan sync:fillable Post
 ```
 
 This will:
-- Look for the `User` model in the `app/Models` directory.
+- Look for the `Post` model in the `app/Models` directory.
 - Find the migration file associated with the model’s database table.
 - Update the `$fillable` property in the model with the columns from the migration file.
 
