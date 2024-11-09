@@ -81,24 +81,6 @@ Add any column names here that you want to exclude from the `$fillable` fields.
 
 ---
 
-## 🧪 Testing
-
-To test this package in your Laravel application, follow these steps:
-
-1. **Install Development Dependencies:**
-    ```bash
-    composer install --dev
-    ```
-
-2. **Run the Tests:**
-    Execute the tests with the following command:
-    ```bash
-    vendor/bin/phpunit
-    ```
-    This will run the tests for the package, verifying that the command behaves as expected.
-
----
-
 ## 🔍 Example
 
 Suppose you have a `User` model with a migration that defines columns such as `name`, `email`, and `password`. Running the following command:
