@@ -29,7 +29,7 @@
     php artisan vendor:publish --provider="Muzammal\Syncmodelfillable\SyncModelFillableServiceProvider"
     ```
 
-    This will create a `config/syncfillable.php` file where you can specify columns to exclude (such as `created_at`, `updated_at`, etc.).
+    This will create a `config/syncfillable.php` file where you can specify columns to exclude (such as `created_at`, `updated_at`, `deleted_at` etc.).
 
 ---
 
@@ -83,16 +83,16 @@ Add any column names here that you want to exclude from the `$fillable` fields.
 
 ## 🔍 Example
 
-Suppose you have a `User` model with a migration that defines columns such as `name`, `email`, and `password`. Running the following command:
+Suppose you have a `Post` model with a migration that defines columns such as `name`, `slug`, and `content`. Running the following command:
 
 ```bash
-php artisan sync:fillable User
+php artisan sync:fillable Post
 ```
 
-Would automatically set the `$fillable` fields in `User.php` as follows:
+Would automatically set the `$fillable` fields in `Post.php` as follows:
 
 ```php
-protected $fillable = ['name', 'email', 'password'];
+protected $fillable = ['name', 'slug', 'content'];
 ```
 
 ## 📜 License
