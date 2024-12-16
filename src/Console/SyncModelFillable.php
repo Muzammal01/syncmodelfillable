@@ -14,7 +14,7 @@ class SyncModelFillable extends Command
      *
      * @var string
      */
-    protected $signature = 'sync:fillable {name}';
+    protected $signature = 'sync:fillable {name} {--ignore=}';
 
     /**
      * The console command description.
@@ -29,11 +29,17 @@ class SyncModelFillable extends Command
     public function handle()
     {
         $name = $this->argument('name');
+        $ignore = $this->option('ignore');
+        $ignoreList = $ignore ? explode(',', $ignore) : [];
 
         if (Str::lower($name) === 'all') {
-            $this->updateAllModels();
+            $this->updateAllModels($ignoreList);
         } else {
-            $this->updateSingleModel($name);
+            if (in_array($name, $ignoreList)) {
+                $this->warn("Model {$name} is ignored.");
+            } else {
+                $this->updateSingleModel($name);
+            }
         }
     }
 
@@ -72,13 +78,21 @@ class SyncModelFillable extends Command
 
     /**
      * Update fillable fields for all models in the app/Models directory.
+     *
+     * @param array $ignoreList
      */
-    protected function updateAllModels()
+    protected function updateAllModels(array $ignoreList)
     {
         $modelFiles = File::allFiles(app_path('Models'));
 
         foreach ($modelFiles as $modelFile) {
             $modelName = $modelFile->getFilenameWithoutExtension();
+
+            if (in_array($modelName, $ignoreList)) {
+                $this->warn("Skipping {$modelName} model as it is in the ignore list.");
+                continue;
+            }
+
             $modelPath = $modelFile->getPathname();
 
             // Retrieve the table name from the model, if specified
