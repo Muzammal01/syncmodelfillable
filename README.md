@@ -8,7 +8,7 @@
 ## ✨ Features
 
 - 🛠️ Syncs model `$fillable` properties with migration columns.
-- 📦 Supports Laravel versions 8, 9, 10, and 11.
+- 📦 Supports Laravel versions 8, 9, 10, 11, and 12.
 - ⚙️ Customizable to exclude specific columns, like timestamps.
 - 🔄 **New**: Added a `--ignore` flag to exclude specific models during sync.
 
