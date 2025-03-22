@@ -3,8 +3,7 @@
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/muzammal/syncmodelfillable.svg?style=flat-square)](https://packagist.org/packages/muzammal/syncmodelfillable)
 [![Total Downloads](https://img.shields.io/packagist/dt/muzammal/syncmodelfillable.svg?style=flat-square)](https://packagist.org/packages/muzammal/syncmodelfillable)
 
-**SyncModelFillable** is a Laravel package designed to help automatically sync a model's `$fillable` fields with its database migration columns. 🎉 With just a simple Artisan command, you can keep your model properties up-to-date with your migration files effortlessly.
-
+**SyncModelFillable** is a Laravel package designed to help automatically add or update a model's `$fillable` fields with its database migration columns. 🎉 With just a simple Artisan command.
 ## ✨ Features
 
 - 🛠️ Syncs model `$fillable` properties with migration columns.
