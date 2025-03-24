@@ -26,7 +26,7 @@ composer require muzammal/syncmodelfillable
 If you'd like to customize which columns are excluded from the `$fillable` fields, publish the configuration file:
 
 ```bash
-php artisan vendor:publish --provider="Muzammal\Syncmodelfillable\SyncModelFillableServiceProvider"
+php artisan vendor:publish --tag=config
 ```
 
 This will create a `config/syncfillable.php` file where you can specify columns to exclude (such as `created_at`, `updated_at`, `deleted_at` etc.).
