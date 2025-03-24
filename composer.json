@@ -1,6 +1,6 @@
 {
     "name": "muzammal/syncmodelfillable",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "A Laravel package to synchronize model fillable fields with migration columns using commands",
     "type": "library",
     "license": "MIT",
