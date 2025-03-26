@@ -14,7 +14,7 @@ class SyncModelFillable extends Command
      *
      * @var string
      */
-    protected $signature = 'sync:fillable {name} {--ignore=}';
+    protected $signature = 'sync:fillable {name} {--path=} {--ignore=}';
 
     /**
      * The console command description.
@@ -27,34 +27,84 @@ class SyncModelFillable extends Command
      * Execute the console command.
      */
     public function handle()
-    {
-        $name = $this->argument('name');
-        $ignore = $this->option('ignore');
-        $ignoreList = $ignore ? explode(',', $ignore) : [];
+{
+    $name = $this->argument('name');
+    $ignore = $this->option('ignore');
+    $ignoreList = $ignore ? explode(',', $ignore) : [];
 
-        if (Str::lower($name) === 'all') {
-            $this->updateAllModels($ignoreList);
-        } else {
-            if (in_array($name, $ignoreList)) {
-                $this->warn("Model {$name} is ignored.");
-            } else {
-                $this->updateSingleModel($name);
+    // Ensure the name argument is provided
+    if (!$name) {
+        $this->error("Error: Missing argument. You must specify a model name or use 'all'.");
+        return Command::FAILURE;
+    }
+
+    // Determine the directory to scan
+    $customPath = $this->option('path');
+    $basePath = $customPath ? base_path($customPath) : app_path('Models');
+
+    // Check if the directory exists before proceeding
+    if (!is_dir($basePath)) {
+        $this->error("Error: The directory '{$basePath}' does not exist.");
+        return Command::FAILURE;
+    }
+
+    if (Str::lower($name) === 'all') {
+        $this->updateAllModels($basePath, $ignoreList);
+    } else {
+        if (in_array($name, $ignoreList)) {
+            $this->warn("Skipping ignored model: {$name}");
+            return Command::SUCCESS;
+        }
+
+        // Validate if the model file exists
+        $modelPath = "{$basePath}/{$name}.php";
+        if (!file_exists($modelPath)) {
+            $this->error("Error: Model '{$name}' does not exist in {$basePath}.");
+            return Command::FAILURE;
+        }
+
+        $this->updateSingleModel($name, $basePath);
+    }
+
+    return Command::SUCCESS;
+}
+   
+
+    /**
+     * Update fillable fields for all models in a directory (recursively).
+     */
+    protected function updateAllModels($directory, array $ignoreList)
+    {
+        $modelFiles = File::allFiles($directory);
+
+        foreach ($modelFiles as $modelFile) {
+            $modelName = $modelFile->getFilenameWithoutExtension();
+
+            if (in_array($modelName, $ignoreList)) {
+                $this->warn("Skipping {$modelName} model as it is in the ignore list.");
+                continue;
             }
+
+            $this->updateSingleModel($modelName, $directory);
         }
     }
 
     /**
      * Update the fillable fields for a single model.
      */
-    protected function updateSingleModel($name)
+    protected function updateSingleModel($name, $directory)
     {
         $modelName = ucfirst($name);
-        $modelPath = app_path("Models/{$modelName}.php");
+        $modelFiles = File::allFiles($directory);
 
-        if (!File::exists($modelPath)) {
-            $this->error("Model {$modelName} does not exist.");
+        $modelFile = collect($modelFiles)->first(fn($file) => $file->getFilenameWithoutExtension() === $modelName);
+
+        if (!$modelFile) {
+            $this->error("Model {$modelName} does not exist in {$directory}.");
             return;
         }
+
+        $modelPath = $modelFile->getPathname();
 
         // Retrieve the table name from the model, if specified
         $tableName = $this->getModelTableName($modelPath, $modelName);
@@ -72,85 +122,33 @@ class SyncModelFillable extends Command
                 $this->warn("No columns found in migration for table '{$tableName}'.");
             }
         } else {
-            $this->error("Migration file for table '{$tableName}' not found.");
-        }
-    }
-
-    /**
-     * Update fillable fields for all models in the app/Models directory.
-     *
-     * @param array $ignoreList
-     */
-    protected function updateAllModels(array $ignoreList)
-    {
-        $modelFiles = File::allFiles(app_path('Models'));
-
-        foreach ($modelFiles as $modelFile) {
-            $modelName = $modelFile->getFilenameWithoutExtension();
-
-            if (in_array($modelName, $ignoreList)) {
-                $this->warn("Skipping {$modelName} model as it is in the ignore list.");
-                continue;
-            }
-
-            $modelPath = $modelFile->getPathname();
-
-            // Retrieve the table name from the model, if specified
-            $tableName = $this->getModelTableName($modelPath, $modelName);
-
-            // Find the migration file based on the table name
-            $migrationFile = $this->getMigrationFileByTableName($tableName);
-
-            if ($migrationFile) {
-                $columns = $this->extractColumnsFromMigration($migrationFile);
-
-                if ($columns) {
-                    $this->updateModelFillable($modelPath, $columns);
-                    $this->info("Updated fillable fields for {$modelName} model.");
-                } else {
-                    $this->warn("No columns found in migration for table '{$tableName}'.");
-                }
-            } else {
-                $this->warn("Migration file for table '{$tableName}' not found for model '{$modelName}'.");
-            }
+            $this->warn("Migration file for table '{$tableName}' not found for model '{$modelName}'.");
         }
     }
 
     /**
      * Retrieve the table name from the model.
-     *
-     * @param string $modelPath
-     * @param string $modelName
-     * @return string
      */
     protected function getModelTableName($modelPath, $modelName)
     {
-        // Use reflection to get the table property if it exists
         if (File::exists($modelPath)) {
             require_once $modelPath;
-            if (class_exists("App\\Models\\{$modelName}")) {
-                $reflection = new ReflectionClass("App\\Models\\{$modelName}");
+            $className = $this->getClassNameFromPath($modelPath);
+            if (class_exists($className)) {
+                $reflection = new ReflectionClass($className);
                 if ($reflection->hasProperty('table')) {
                     $property = $reflection->getProperty('table');
                     $property->setAccessible(true);
                     $instance = $reflection->newInstance();
-                    $table = $property->getValue($instance);
-                    if ($table) {
-                        return $table;
-                    }
+                    return $property->getValue($instance) ?? Str::snake(Str::plural($modelName));
                 }
             }
         }
-
-        // Default to plural snake_case of the model name
         return Str::snake(Str::plural($modelName));
     }
 
     /**
      * Get the migration file based on the table name.
-     *
-     * @param string $tableName
-     * @return \SplFileInfo|null
      */
     protected function getMigrationFileByTableName($tableName)
     {
@@ -160,9 +158,6 @@ class SyncModelFillable extends Command
 
     /**
      * Extract columns from the migration file.
-     *
-     * @param \SplFileInfo $migrationFile
-     * @return array
      */
     protected function extractColumnsFromMigration($migrationFile)
     {
@@ -175,9 +170,6 @@ class SyncModelFillable extends Command
 
     /**
      * Update the model's fillable fields.
-     *
-     * @param string $modelPath
-     * @param array $columns
      */
     protected function updateModelFillable($modelPath, array $columns)
     {
@@ -196,5 +188,15 @@ class SyncModelFillable extends Command
         }
 
         File::put($modelPath, $modelContent);
+    }
+
+    /**
+     * Extract the full class name from the file path.
+     */
+    protected function getClassNameFromPath($path)
+    {
+        $relativePath = str_replace(base_path(), '', $path);
+        $classPath = str_replace(['/', '.php'], ['\\', ''], $relativePath);
+        return trim($classPath, '\\');
     }
 }
