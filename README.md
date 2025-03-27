@@ -127,5 +127,4 @@ protected $fillable = ['name', 'slug', 'content'];
 
 ## 📜 License  
 
-This package is open-source software licensed under the MIT license.  
-```
+This package is open-source software licensed under the MIT license.
