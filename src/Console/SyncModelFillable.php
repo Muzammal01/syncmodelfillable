@@ -161,11 +161,13 @@ class SyncModelFillable extends Command
      */
     protected function extractColumnsFromMigration($migrationFile)
     {
-        $content = File::get($migrationFile);
-        preg_match_all('/\$table->\w+\(\s*[\'"]([^\'"]+)[\'"]/', $content, $matches);
+    $content = File::get($migrationFile);
+    preg_match_all('/\$table->\w+\(\s*[\'"]([^\'"]+)[\'"]/', $content, $matches);
 
-        $excludedColumns = config('syncfillable.excluded_columns', ['created_at', 'updated_at', 'deleted_at']);
-        return array_filter($matches[1] ?? [], fn($column) => !in_array($column, $excludedColumns));
+    $excludedColumns = config('syncfillable.excluded_columns', ['created_at', 'updated_at', 'deleted_at']);
+    $columns = array_filter($matches[1] ?? [], fn($column) => !in_array($column, $excludedColumns));
+    
+    return array_unique($columns);
     }
 
     /**
