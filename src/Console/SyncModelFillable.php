@@ -176,7 +176,7 @@ class SyncModelFillable extends Command
     protected function updateModelFillable($modelPath, array $columns)
     {
         $fillableArray = implode("', '", $columns);
-        $fillableLine = "    protected \$fillable = ['{$fillableArray}'];\n";
+        $fillableLine = "protected \$fillable = ['{$fillableArray}'];\n";
 
         $modelContent = File::get($modelPath);
 
