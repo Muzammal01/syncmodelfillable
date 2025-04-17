@@ -56,10 +56,11 @@ class SyncModelFillable extends Command
             return Command::SUCCESS;
         }
 
-        // Validate if the model file exists
-        $modelPath = "{$basePath}/{$name}.php";
-        if (!file_exists($modelPath)) {
-            $this->error("Error: Model '{$name}' does not exist in {$basePath}.");
+        $modelFiles = File::allFiles($basePath);
+        $modelFile = collect($modelFiles)->first(fn($file) => $file->getFilenameWithoutExtension() === $name);
+
+        if (!$modelFile) {
+            $this->error("Error: Model '{$name}' does not exist in {$basePath} or its subdirectories.");
             return Command::FAILURE;
         }
 
