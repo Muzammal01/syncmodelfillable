@@ -42,7 +42,7 @@ This package provides an Artisan command `sync:fillable` to sync a model's `$fil
 
 ### 🔹 Sync a Specific Model  
 
-To sync the `$fillable` fields of a specific model, run:  
+To sync the `$fillable` fields of a specific model inside `app/Models/`, including nested folders run this:  
 
 ```bash
 php artisan sync:fillable Post
