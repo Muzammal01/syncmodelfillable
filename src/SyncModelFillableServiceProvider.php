@@ -24,6 +24,6 @@ class SyncModelFillableServiceProvider extends ServiceProvider
     {
         $this->publishes([
             __DIR__ . '/../config/syncfillable.php' => config_path('syncfillable.php'),
-        ], 'config');
+        ], 'syncmodelfillable-config');
     }
 }
