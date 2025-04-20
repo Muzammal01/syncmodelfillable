@@ -191,6 +191,20 @@ class SyncModelFillable extends Command
         }
 
         File::put($modelPath, $modelContent);
+
+        // Format the model file using Pint
+
+        $isWindows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
+        $pintBinary = $isWindows ? 'vendor\\bin\\pint.bat' : './vendor/bin/pint';
+
+        $process = new Process([$pintBinary, $modelPath]);
+        $process->run();
+
+        if (!$process->isSuccessful()) {
+            $this->error("Error formatting the model file: {$modelPath}");
+            $this->line($process->getErrorOutput());
+            return;
+        }
     }
 
     /**
