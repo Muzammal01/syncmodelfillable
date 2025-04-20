@@ -30,7 +30,7 @@
 2. **(Optional) Publish the configuration file:**  
 
    ```bash
-   php artisan vendor:publish --tag=config
+   php artisan vendor:publish --tag=syncmodelfillable-config
    ```  
 
    This will create a `config/syncfillable.php` file where you can specify columns to exclude (such as `created_at`, `updated_at`, `deleted_at`, etc.).  
