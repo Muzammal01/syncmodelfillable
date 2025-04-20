@@ -14,7 +14,8 @@
 - 🔄 **New:**  
   - The `all` flag now **recursively scans all subdirectories** inside `app/Models/`.  
   - The `--path=` option allows selecting a **custom directory** for scanning models.  
-  - The `--ignore` flag lets you exclude specific models during sync.  
+  - The `--ignore` flag lets you exclude specific models during sync.
+  - 🧹 **Cross-platform Pint support:** Automatically formats the model file after updating the `$fillable` fields, ensuring proper code formatting on all operating systems (Windows, macOS, Linux).
 
 ---
 
@@ -109,6 +110,17 @@ return [
 
 ---
 
+## 🧹 **Cross-Platform Support for Pint**  
+
+After updating the `$fillable` fields, the model file will be automatically formatted using [Pint](https://github.com/laravel/pint). This ensures that your code is properly formatted on all operating systems, including Windows, macOS, and Linux. 
+
+- On **Windows**, Pint is run via `vendor\\bin\\pint.bat`.  
+- On **macOS/Linux**, Pint is executed with `./vendor/bin/pint`.
+
+This ensures your code maintains consistency and adheres to best practices without requiring manual formatting. ✨
+
+---
+
 ## 🔍 Example  
 
 If your `Post` model has a migration defining `name`, `slug`, and `content` columns, running:  
@@ -122,6 +134,7 @@ Would automatically generate `$fillable` in `Post.php`
 ```php
 protected $fillable = ['name', 'slug', 'content'];
 ```
+Additionally, after updating the `$fillable` fields, the `Post.php` file will be formatted to ensure clean code.
 
 ---
 
