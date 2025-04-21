@@ -5,8 +5,8 @@ namespace Muzammal\Syncmodelfillable\Console;
 use ReflectionClass;
 use Illuminate\Support\Str;
 use Illuminate\Console\Command;
-use Symfony\Component\Process\Process;
 use Illuminate\Support\Facades\File;
+use Symfony\Component\Process\Process;
 
 class SyncModelFillable extends Command
 {
