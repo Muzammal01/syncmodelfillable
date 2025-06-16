@@ -6,6 +6,7 @@ use ReflectionClass;
 use Illuminate\Support\Str;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
 use Symfony\Component\Process\Process;
 
 class SyncModelFillable extends Command
@@ -15,91 +16,91 @@ class SyncModelFillable extends Command
      *
      * @var string
      */
-    protected $signature = 'sync:fillable {name} {--path=} {--ignore=}';
+    protected $signature = 'sync:fillable {name} {--path=} {--ignore=} {--dry-run} {--guarded} {--from-schema}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Sync model fillable fields with migration columns';
+    protected $description = 'Sync model fillable or guarded fields with migration columns or database schema';
 
     /**
      * Execute the console command.
      */
     public function handle()
-{
-    $name = $this->argument('name');
-    $ignore = $this->option('ignore');
-    $ignoreList = $ignore ? explode(',', $ignore) : [];
+    {
+        $name = $this->argument('name');
+        $ignore = $this->option('ignore');
+        $ignoreList = $ignore ? explode(',', $ignore) : [];
 
-    // Ensure the name argument is provided
-    if (!$name) {
-        $this->error("Error: Missing argument. You must specify a model name or use 'all'.");
-        return Command::FAILURE;
-    }
-
-    // Determine the directory to scan
-    $customPath = $this->option('path');
-    $basePath = $customPath ? base_path($customPath) : app_path('Models');
-
-    // Check if the directory exists before proceeding
-    if (!is_dir($basePath)) {
-        $this->error("Error: The directory '{$basePath}' does not exist.");
-        return Command::FAILURE;
-    }
-
-    if (Str::lower($name) === 'all') {
-        $this->updateAllModels($basePath, $ignoreList);
-    } else {
-        if (in_array($name, $ignoreList)) {
-            $this->warn("Skipping ignored model: {$name}");
-            return Command::SUCCESS;
-        }
-
-        $modelFiles = File::allFiles($basePath);
-        $modelFile = collect($modelFiles)->first(fn($file) => $file->getFilenameWithoutExtension() === $name);
-
-        if (!$modelFile) {
-            $this->error("Error: Model '{$name}' does not exist in {$basePath} or its subdirectories.");
+        // Ensure the name argument is provided
+        if (!$name) {
+            $this->error("Error: Missing argument. You must specify a model name or use 'all'.");
             return Command::FAILURE;
         }
 
-        $this->updateSingleModel($name, $basePath);
+        // Determine the directory to scan
+        $customPath = $this->option('path');
+        $basePath = $customPath ? base_path($customPath) : app_path('Models');
+
+        // Check if the directory exists before proceeding
+        if (!is_dir($basePath)) {
+            $this->error("Error: The directory '{$basePath}' does not exist.");
+            return Command::FAILURE;
+        }
+
+        if (Str::lower($name) === 'all') {
+            $this->updateAllModels($basePath, $ignoreList);
+        } else {
+            if (in_array($name, $ignoreList)) {
+                $this->warn("Skipping ignored model: {$name}");
+                return Command::SUCCESS;
+            }
+
+            $this->updateSingleModel($name, $basePath);
+        }
+
+        return Command::SUCCESS;
     }
 
-    return Command::SUCCESS;
-}
-   
-
     /**
-     * Update fillable fields for all models in a directory (recursively).
+     * Update fillable/guarded fields for all models in a directory (recursively).
      */
     protected function updateAllModels($directory, array $ignoreList)
     {
-        $modelFiles = File::allFiles($directory);
+        // Only include .php files, exclude .backup files
+        $modelFiles = collect(File::allFiles($directory))
+            ->filter(fn($file) => $file->getExtension() === 'php' && !Str::endsWith($file->getFilename(), '.backup'));
+
+        $this->output->progressStart(count($modelFiles));
 
         foreach ($modelFiles as $modelFile) {
             $modelName = $modelFile->getFilenameWithoutExtension();
 
             if (in_array($modelName, $ignoreList)) {
                 $this->warn("Skipping {$modelName} model as it is in the ignore list.");
+                $this->output->progressAdvance();
                 continue;
             }
 
             $this->updateSingleModel($modelName, $directory);
+            $this->output->progressAdvance();
         }
+
+        $this->output->progressFinish();
     }
 
     /**
-     * Update the fillable fields for a single model.
+     * Update the fillable/guarded fields for a single model.
      */
     protected function updateSingleModel($name, $directory)
     {
         $modelName = ucfirst($name);
-        $modelFiles = File::allFiles($directory);
+        $modelFiles = collect(File::allFiles($directory))
+            ->filter(fn($file) => $file->getExtension() === 'php' && !Str::endsWith($file->getFilename(), '.backup'));
 
-        $modelFile = collect($modelFiles)->first(fn($file) => $file->getFilenameWithoutExtension() === $modelName);
+        $modelFile = $modelFiles->first(fn($file) => $file->getFilenameWithoutExtension() === $modelName);
 
         if (!$modelFile) {
             $this->error("Model {$modelName} does not exist in {$directory}.");
@@ -107,94 +108,193 @@ class SyncModelFillable extends Command
         }
 
         $modelPath = $modelFile->getPathname();
+        $className = $this->getClassNameFromPath($modelPath);
 
-        // Retrieve the table name from the model, if specified
-        $tableName = $this->getModelTableName($modelPath, $modelName);
+        // Validate that the file is a valid Eloquent model
+        if (!$this->isValidModelFile($modelPath, $className)) {
+            $this->warn("{$modelName} is not a valid Eloquent model. Skipping.");
+            return;
+        }
 
-        // Find the migration file based on the table name
-        $migrationFile = $this->getMigrationFileByTableName($tableName);
+        // Get table name and connection
+        $tableInfo = $this->getModelTableName($modelPath, $modelName);
+        $tableName = $tableInfo['table'];
+        $connection = $tableInfo['connection'];
 
-        if ($migrationFile) {
-            $columns = $this->extractColumnsFromMigration($migrationFile);
+        // Get columns from schema or migrations
+        if ($this->option('from-schema')) {
+            $columns = $this->getColumnsFromSchema($tableName, $connection);
+        } else {
+            $migrationFiles = $this->getMigrationFilesByTableName($tableName);
+            $columns = !empty($migrationFiles) ? $this->extractColumnsFromMigration($migrationFiles) : [];
+        }
 
-            if ($columns) {
-                $this->updateModelFillable($modelPath, $columns);
-                $this->info("Updated fillable fields for {$modelName} model.");
+        if ($columns) {
+            // Log the intended change
+            $this->logChange($modelPath, $columns, 'before');
+
+            if ($this->option('dry-run')) {
+                $property = $this->option('guarded') ? 'guarded' : 'fillable';
+                $this->info("Dry run: Would update {$modelPath} with {$property}: ['" . implode("', '", $columns) . "']");
             } else {
-                $this->warn("No columns found in migration for table '{$tableName}'.");
+                $this->updateModelFillable($modelPath, $columns);
+                $this->info("Updated " . ($this->option('guarded') ? 'guarded' : 'fillable') . " fields for {$modelName} model.");
+                $this->logChange($modelPath, $columns, 'after');
             }
         } else {
-            $this->warn("Migration file for table '{$tableName}' not found for model '{$modelName}'.");
+            $this->warn("No columns found for table '{$tableName}' for model '{$modelName}'.");
         }
     }
 
     /**
-     * Retrieve the table name from the model.
+     * Validate that a file is a valid Eloquent model.
+     */
+    protected function isValidModelFile($modelPath, $className)
+    {
+        if (!File::exists($modelPath)) {
+            return false;
+        }
+
+        // Use a unique include to avoid redeclaration
+        $included = include_once $modelPath;
+
+        if ($included === false) {
+            return false;
+        }
+
+        return class_exists($className) && is_subclass_of($className, \Illuminate\Database\Eloquent\Model::class);
+    }
+
+    /**
+     * Retrieve the table name and connection from the model.
      */
     protected function getModelTableName($modelPath, $modelName)
     {
+        $table = Str::snake(Str::plural($modelName));
+        $connection = config('database.default');
+
         if (File::exists($modelPath)) {
-            require_once $modelPath;
             $className = $this->getClassNameFromPath($modelPath);
-            if (class_exists($className)) {
+            if ($this->isValidModelFile($modelPath, $className)) {
                 $reflection = new ReflectionClass($className);
+                $instance = $reflection->newInstance();
+
+                // Detect SoftDeletes trait and exclude 'deleted_at'
+                $traits = class_uses_recursive($className);
+                if (in_array(\Illuminate\Database\Eloquent\SoftDeletes::class, $traits)) {
+                    $excludedColumns = config('syncfillable.excluded_columns', []);
+                    if (!in_array('deleted_at', $excludedColumns)) {
+                        config(['syncfillable.excluded_columns' => array_merge($excludedColumns, ['deleted_at'])]);
+                    }
+                }
+
+                // Get connection name
+                if ($reflection->hasProperty('connection')) {
+                    $property = $reflection->getProperty('connection');
+                    $property->setAccessible(true);
+                    $connection = $property->getValue($instance) ?? $connection;
+                }
+
+                // Get table name
                 if ($reflection->hasProperty('table')) {
                     $property = $reflection->getProperty('table');
                     $property->setAccessible(true);
-                    $instance = $reflection->newInstance();
-                    return $property->getValue($instance) ?? Str::snake(Str::plural($modelName));
+                    $table = $property->getValue($instance) ?? $table;
                 }
             }
         }
-        return Str::snake(Str::plural($modelName));
+
+        return ['table' => $table, 'connection' => $connection];
     }
 
     /**
-     * Get the migration file based on the table name.
+     * Get migration files related to the table name.
      */
-    protected function getMigrationFileByTableName($tableName)
+    protected function getMigrationFilesByTableName($tableName)
     {
-        return collect(File::allFiles(database_path('migrations')))
-            ->first(fn($file) => Str::contains($file->getFilename(), "create_{$tableName}_table"));
+        $migrationFiles = File::allFiles(database_path('migrations'));
+        $relatedMigrations = collect($migrationFiles)->filter(function ($file) use ($tableName) {
+            $content = File::get($file);
+            return Str::contains($content, "'{$tableName}'") || Str::contains($file->getFilename(), $tableName);
+        });
+
+        return $relatedMigrations->sortBy(function ($file) {
+            return $file->getMTime();
+        })->values()->all();
     }
 
     /**
-     * Extract columns from the migration file.
+     * Extract columns from migration files.
      */
-    protected function extractColumnsFromMigration($migrationFile)
+    protected function extractColumnsFromMigration($migrationFiles)
     {
-    $content = File::get($migrationFile);
-    preg_match_all('/\$table->\w+\(\s*[\'"]([^\'"]+)[\'"]/', $content, $matches);
+        $columns = [];
+        $excludedColumns = config('syncfillable.excluded_columns', []);
+        $excludedTypes = config('syncfillable.excluded_types', []);
+        $excludeCallback = config('syncfillable.exclude_callback');
 
-    $excludedColumns = config('syncfillable.excluded_columns', ['created_at', 'updated_at', 'deleted_at']);
-    $columns = array_filter($matches[1] ?? [], fn($column) => !in_array($column, $excludedColumns));
-    
-    return array_unique($columns);
+        foreach ((array)$migrationFiles as $migrationFile) {
+            $content = File::get($migrationFile);
+            preg_match_all('/\$table->(\w+)\(\s*[\'"]([^\'"]+)[\'"]/', $content, $matches);
+
+            foreach ($matches[2] as $index => $column) {
+                $type = $matches[1][$index];
+                if (!in_array($column, $excludedColumns) && !in_array($type, $excludedTypes)) {
+                    if ($excludeCallback && call_user_func($excludeCallback, $column, $type)) {
+                        continue;
+                    }
+                    $columns[] = $column;
+                }
+            }
+        }
+
+        return array_unique($columns);
     }
 
     /**
-     * Update the model's fillable fields.
+     * Get columns from the database schema.
+     */
+    protected function getColumnsFromSchema($tableName, $connection)
+    {
+        try {
+            $excludedColumns = config('syncfillable.excluded_columns', []);
+            return array_diff(
+                Schema::connection($connection)->getColumnListing($tableName),
+                $excludedColumns
+            );
+        } catch (\Exception $e) {
+            $this->error("Error accessing schema for table '{$tableName}': {$e->getMessage()}");
+            return [];
+        }
+    }
+
+    /**
+     * Update the model's fillable or guarded fields.
      */
     protected function updateModelFillable($modelPath, array $columns)
     {
-        $fillableArray = implode("', '", $columns);
-        $fillableLine = "protected \$fillable = ['{$fillableArray}'];\n";
+        $property = $this->option('guarded') ? 'guarded' : 'fillable';
+        $arrayContent = implode("', '", $columns);
+        $propertyLine = "protected \${$property} = ['{$arrayContent}'];\n";
 
         $modelContent = File::get($modelPath);
+        $originalContent = $modelContent;
 
-        // Check if $fillable exists in the model
-        if (Str::contains($modelContent, 'protected $fillable')) {
-            // Update existing $fillable
-            $modelContent = preg_replace('/protected \$fillable = \[.*?\];/s', $fillableLine, $modelContent);
+        if (Str::contains($modelContent, "protected \${$property}")) {
+            $modelContent = preg_replace("/protected \${$property} = \[.*?\];/s", $propertyLine, $modelContent);
         } else {
-            // Insert $fillable after class declaration
-            $modelContent = preg_replace('/{/', "{\n{$fillableLine}", $modelContent, 1);
+            $modelContent = preg_replace('/{/', "{\n{$propertyLine}", $modelContent, 1);
         }
+
+        // Conditionally create backup based on config
+        if (config('syncfillable.model_backup', true)) {
+            File::put($modelPath . '.backup', $originalContent);
+        }
+
 
         File::put($modelPath, $modelContent);
 
         // Format the model file using Pint
-
         $isWindows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
         $pintBinary = $isWindows ? 'vendor\\bin\\pint.bat' : './vendor/bin/pint';
 
@@ -204,17 +304,101 @@ class SyncModelFillable extends Command
         if (!$process->isSuccessful()) {
             $this->error("Error formatting the model file: {$modelPath}");
             $this->line($process->getErrorOutput());
+             // Restore from backup if available and formatting fails
+            if (config('syncfillable.model_backup', true) && File::exists($modelPath . '.backup')) {
+                File::move($modelPath . '.backup', $modelPath);
+            }
             return;
         }
     }
 
     /**
-     * Extract the full class name from the file path.
+     * Extract the full class name from the file path with namespace mapping.
      */
     protected function getClassNameFromPath($path)
     {
         $relativePath = str_replace(base_path(), '', $path);
         $classPath = str_replace(['/', '.php'], ['\\', ''], $relativePath);
-        return trim($classPath, '\\');
+        $className = trim($classPath, '\\');
+
+        // Map directory to namespace
+        $namespaceMap = config('syncfillable.namespace_map', [
+            'app/Models' => 'App\\Models',
+        ]);
+
+        foreach ($namespaceMap as $dir => $namespace) {
+            if (Str::startsWith($relativePath, '/' . $dir) || Str::startsWith($relativePath, '\\' . $dir)) {
+                $className = $namespace . str_replace([$dir, '/'], ['', '\\'], $relativePath);
+                $className = str_replace('.php', '', $className);
+                break;
+            }
+        }
+
+        return trim($className, '\\');
+    }
+
+    /**
+     * Log changes to a file.
+     */
+    protected function logChange($modelPath, array $columns, $stage)
+    {
+        $property = $this->option('guarded') ? 'guarded' : 'fillable';
+        $logMessage = sprintf(
+            "[%s] %s update for %s: %s = ['%s']\n",
+            now()->toDateTimeString(),
+            ucfirst($stage),
+            $modelPath,
+            $property,
+            implode("', '", $columns)
+        );
+        File::append(storage_path('logs/syncfillable.log'), $logMessage);
+    }
+
+    /**
+     * Rollback changes for a single model or all models.
+     */
+    public function rollback($name, $directory)
+    {
+        if (Str::lower($name) === 'all') {
+            $modelFiles = collect(File::allFiles($directory))
+                ->filter(fn($file) => $file->getExtension() === 'php' && !Str::endsWith($file->getFilename(), '.backup'));
+            foreach ($modelFiles as $modelFile) {
+                $this->restoreBackup($modelFile->getPathname());
+            }
+        } else {
+            $modelName = ucfirst($name);
+            $modelPath = "{$directory}/{$modelName}.php";
+            $this->restoreBackup($modelPath);
+        }
+    }
+
+    /**
+     * Restore a model file from its backup.
+     */
+    protected function restoreBackup($modelPath)
+    {
+        $backupPath = $modelPath . '.backup';
+        if (File::exists($backupPath)) {
+            File::move($backupPath, $modelPath);
+            $this->info("Restored {$modelPath} from backup.");
+            $logMessage = sprintf("[%s] Rolled back %s\n", now()->toDateTimeString(), $modelPath);
+            File::append(storage_path('logs/syncfillable.log'), $logMessage);
+        } else {
+            $this->warn("No backup found for {$modelPath}.");
+        }
+    }
+
+    /**
+     * Clean up stale backup files.
+     */
+    protected function cleanupBackups($directory)
+    {
+        $backupFiles = collect(File::allFiles($directory))
+            ->filter(fn($file) => Str::endsWith($file->getFilename(), '.backup'));
+
+        foreach ($backupFiles as $backupFile) {
+            File::delete($backupFile->getPathname());
+            $this->info("Deleted stale backup: {$backupFile->getPathname()}");
+        }
     }
 }

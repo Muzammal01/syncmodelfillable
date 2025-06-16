@@ -12,9 +12,10 @@ class SyncModelFillableServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        // Register the command here
-        // $this->app->singleton(SyncModelFillable::class);
         $this->commands([SyncModelFillable::class]);
+
+        // Merge the package's config file
+        $this->mergeConfigFrom(__DIR__ . '/../config/syncfillable.php', 'syncfillable');
     }
 
     /**
@@ -22,8 +23,14 @@ class SyncModelFillableServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+        // Publish the config file
         $this->publishes([
             __DIR__ . '/../config/syncfillable.php' => config_path('syncfillable.php'),
         ], 'syncmodelfillable-config');
+
+        // Register the rollback command
+        $this->commands([
+            \Muzammal\Syncmodelfillable\Console\RollbackSyncModelFillable::class,
+        ]);
     }
 }
