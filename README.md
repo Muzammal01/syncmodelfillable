@@ -8,136 +8,294 @@
 
 ## ✨ Features  
 
-- 🛠️ Syncs model `$fillable` properties with migration columns.  
-- 📦 Supports Laravel versions 8, 9, 10, 11, and 12.  
-- ⚙️ Customizable to exclude specific columns, like timestamps.  
-- 🔄 **New:**  
-  - The `all` flag now **recursively scans all subdirectories** inside `app/Models/`.  
-  - The `--path=` option allows selecting a **custom directory** for scanning models.  
-  - The `--ignore` flag lets you exclude specific models during sync.
-  - 🧹 **Cross-platform Pint support:** Automatically formats the model file after updating the `$fillable` fields, ensuring proper code formatting on all operating systems (Windows, macOS, Linux).
+- 🛠 Syncs model `$fillable` or `$guarded` properties with **migration** or **database schema**.
+- 📦 Supports Laravel versions **8, 9, 10, 11, and 12**.
+- ⚙️ Customizable to exclude specific **columns** or **column types**.
+- 📂 Recursive scanning: `all` flag scans all subdirectories in `app/Models/` or custom paths.
+- 📁 `--path=`: Scan models in any directory.
+- 🚫 `--ignore`: Exclude specific models from sync.
+- 🧹 Cross-platform [Pint](https://github.com/laravel/pint) support for clean, consistent formatting (Windows, macOS, Linux).
+- 🧮 `--from-schema`: Sync directly from the database schema.
+- 🧪 `--dry-run`: Preview changes without modifying files.
+- 🔐 `--guarded`: Sync `$guarded` fields instead of `$fillable`.
+- 🗂 Model backup support (`.php.backup` files).
+- ⏪ Rollback support via `sync:fillable:rollback`.
+- 🧬 Cross-database compatibility (MySQL, SQLite, PostgreSQL, SQL Server, etc.)
 
 ---
 
-## 🚀 Installation  
+## 🚀 Installation
 
-1. **Install the package via Composer:**  
+Install the package via Composer:
 
-   ```bash
-   composer require muzammal/syncmodelfillable
-   ```  
+```bash
+composer require muzammal/syncmodelfillable
+```
 
-2. **(Optional) Publish the configuration file:**  
+(Optional) Publish the configuration file:
 
-   ```bash
-   php artisan vendor:publish --tag=syncmodelfillable-config
-   ```  
+```bash
+php artisan vendor:publish --tag=syncmodelfillable-config
+```
 
-   This will create a `config/syncfillable.php` file where you can specify columns to exclude (such as `created_at`, `updated_at`, `deleted_at`, etc.).  
+Creates a `config/syncfillable.php` file to customize exclusions, backup behavior, namespace mappings, etc.
 
 ---
 
-## 📘 Usage  
+## 📘 Usage
 
-This package provides an Artisan command `sync:fillable` to sync a model's `$fillable` fields with its database migration columns.  
+This package provides two Artisan commands:
 
-### 🔹 Sync a Specific Model  
+- `sync:fillable`: Sync model fields
+- `sync:fillable:rollback`: Revert synced changes (uses backups)
 
-To sync the `$fillable` fields of a specific model inside `app/Models/`, including nested folders run this:  
+### 🔹 Sync a Specific Model
 
 ```bash
 php artisan sync:fillable Post
 ```
 
-### 🔹 Sync All Models (Including Nested Folders)  
+Scans `app/Models/` (including subdirectories) for the `Post` model and syncs its fields.
 
-To sync all models inside `app/Models/`, including nested folders:  
+### 🔹 Sync All Models
 
 ```bash
 php artisan sync:fillable all
 ```
 
-This will:  
-- Scan **all subdirectories** inside `app/Models/` (e.g., `app/Models/Fintech/AnotherFolder/AnotherFolder`).  
-- Match each model with its migration file.  
-- generate the `$fillable` properties accordingly.  
+- Recursively scans `app/Models/`
+- Matches each model with migration/schema
+- Updates `$fillable` or `$guarded` properties
 
-### 🔹 **New:** Custom Path for Models  
-
-You can specify a custom path instead of using `app/Models/` by using the `--path=` option.  
+### 🔹 Custom Path for Models
 
 ```bash
-php artisan sync:fillable --path=app/CustomModels
+php artisan sync:fillable all --path=app/CustomModels
 ```
 
-This will:  
-- Scan **app/CustomModels/** instead of `app/Models/`.  
-- Sync all models found in that directory.  
+Scans models in a custom directory instead of `app/Models/`.
 
-### 🔹 **New:** Exclude Models with the `--ignore` Flag  
-
-To exclude specific models from the sync operation:  
+### 🔹 Exclude Models with `--ignore`
 
 ```bash
-php artisan sync:fillable all --ignore=User
+php artisan sync:fillable all --ignore=User,Product
 ```
 
-You can also pass multiple models:  
+> ℹ️ Note: `--ignore` has no effect when syncing a single model.
+
+---
+
+### 🔹 Sync from Database Schema
 
 ```bash
-php artisan sync:fillable all --ignore=User,Product,Order
+php artisan sync:fillable all --from-schema
 ```
 
-If syncing a single model, the `--ignore` flag is not applicable:  
+Use this to sync from the actual **database schema** instead of migrations — great for legacy or dynamically altered databases.
+
+---
+
+### 🔹 Dry Run Mode
 
 ```bash
-php artisan sync:fillable Product
+php artisan sync:fillable Post --dry-run
+```
+
+Outputs a preview of what will be changed:
+
+```
+Dry run: Would update app/Models/Post.php with fillable: ['title', 'slug', 'content']
 ```
 
 ---
 
-## ⚙️ Configuration  
+### 🔹 Sync Guarded Fields
 
-The configuration file `syncfillable.php` allows you to exclude certain columns from `$fillable`. By default, common timestamp columns (`created_at`, `updated_at`, `deleted_at`) are excluded.  
+```bash
+php artisan sync:fillable Post --guarded
+```
 
-**Example configuration:**  
+This sets:
+
+```php
+protected $guarded = ['title', 'slug', 'content'];
+```
+
+---
+
+### 🔹 Rollback Changes
+
+Restore model files using `.backup` files:
+
+```bash
+php artisan sync:fillable:rollback all
+```
+
+Or for a single model:
+
+```bash
+php artisan sync:fillable:rollback Post
+```
+
+---
+
+## ⚙️ Configuration
+
+Publish the config:
+
+```bash
+php artisan vendor:publish --tag=syncmodelfillable-config
+```
+
+### Example: `config/syncfillable.php`
 
 ```php
 return [
-    'excluded_columns' => ['created_at', 'updated_at', 'deleted_at'],
+    // Columns to exclude from fillable/guarded arrays
+    'excluded_columns' => [
+        'created_at',
+        'updated_at',
+        'deleted_at',
+    ],
+
+    // Column types to exclude (e.g., timestamp, json)
+    'excluded_types' => [],
+
+    // Custom callback to exclude columns
+    'exclude_callback' => null,
+
+    // Namespace mapping for model directories
+    'namespace_map' => [
+        'app/Models' => 'App\\Models',
+    ],
+
+    // Enable or disable model backups
+    'model_backup' => true,
 ];
 ```
 
+- `excluded_columns`: Common timestamps or sensitive fields.
+- `excluded_types`: e.g. `timestamp`, `json`.
+- `exclude_callback`: e.g.  
+  ```php
+  function ($column, $type) {
+      return str_starts_with($column, 'hidden_');
+  }
+  ```
+- `namespace_map`: For custom paths.
+- `model_backup`: When `true`, creates `.php.backup` files for rollback.
+
 ---
 
-## 🧹 **Cross-Platform Support for Pint**  
+## 🧹 Pint Formatting
 
-After updating the `$fillable` fields, the model file will be automatically formatted using [Pint](https://github.com/laravel/pint). This ensures that your code is properly formatted on all operating systems, including Windows, macOS, and Linux. 
+After updating fields, model files are auto-formatted using Laravel Pint:
 
-- On **Windows**, Pint is run via `vendor\\bin\\pint.bat`.  
-- On **macOS/Linux**, Pint is executed with `./vendor/bin/pint`.
+- **Windows:** `vendor\bin\pint.bat`
+- **macOS/Linux:** `./vendor/bin/pint`
 
-This ensures your code maintains consistency and adheres to best practices without requiring manual formatting. ✨
+If Pint fails and backups are enabled, the original model is restored and an error is logged.
 
 ---
 
-## 🔍 Example  
+## 🧬 Database Compatibility
 
-If your `Post` model has a migration defining `name`, `slug`, and `content` columns, running:  
+SyncModelFillable supports all Laravel-supported databases:
+
+- MySQL
+- SQLite
+- PostgreSQL
+- SQL Server
+
+- With `--from-schema`: Uses Laravel's Schema facade.
+- Without `--from-schema`: Parses migration files.
+
+---
+
+## 🔍 Examples
+
+### ✅ Example 1: Syncing a Single Model
+
+**Migration:**
+
+```php
+Schema::create('posts', function (Blueprint $table) {
+    $table->id();
+    $table->string('title');
+    $table->string('slug')->unique();
+    $table->text('content');
+    $table->timestamps();
+});
+```
+
+**Command:**
 
 ```bash
 php artisan sync:fillable Post
 ```
 
-Would automatically generate `$fillable` in `Post.php`
+**Result in `app/Models/Post.php`:**
 
 ```php
-protected $fillable = ['name', 'slug', 'content'];
+protected $fillable = ['title', 'slug', 'content'];
 ```
-Additionally, after updating the `$fillable` fields, the `Post.php` file will be formatted to ensure clean code.
 
 ---
 
-## 📜 License  
+### ✅ Example 2: Sync All Models Using Schema
 
-This package is open-source software licensed under the MIT license.
+```bash
+php artisan sync:fillable all --from-schema
+```
+
+**Output:**
+
+```
+0/3 Updated User.php
+1/3 Updated Post.php
+2/3 Updated Category.php
+3/3 Done.
+```
+
+---
+
+### ✅ Example 3: Dry Run with Guarded
+
+```bash
+php artisan sync:fillable Post --guarded --dry-run
+```
+
+**Output:**
+
+```
+Dry run: Would update app/Models/Post.php with guarded: ['title', 'slug', 'content']
+```
+
+---
+
+### ✅ Example 4: Rollback Changes
+
+```bash
+php artisan sync:fillable:rollback all
+```
+
+**Output:**
+
+```
+0/3 Restored User.php from backup.
+1/3 Restored Post.php from backup.
+2/3 Restored Category.php from backup.
+3/3 Done.
+```
+
+---
+
+## 📜 License
+
+This package is open-source software licensed under the (LICENSE).
+---
+
+💡 Have suggestions or want to contribute? PRs and issues are welcome!
+```
+
+
