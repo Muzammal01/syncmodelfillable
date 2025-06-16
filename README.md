@@ -296,6 +296,3 @@ This package is open-source software licensed under the (LICENSE).
 ---
 
 💡 Have suggestions or want to contribute? PRs and issues are welcome!
-```
-
-
