@@ -288,11 +288,19 @@ php artisan sync:fillable:rollback all
 3/3 Done.
 ```
 
----
+## 🤝 Contributing
+
+Contributions are welcome! Please submit pull requests or report issues on GitHub.  
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for detailed guidelines.
+
+## 🙏 Acknowledgements
+
+- Inspired by the need to simplify Eloquent model maintenance.
+- Thanks to [Laravel Pint](https://github.com/laravel/pint) for automatic code formatting.
+- Built with ❤️ by **Muzammal**.
+
 
 ## 📜 License
 
 This package is open-source software licensed under the (LICENSE).
 ---
-
-💡 Have suggestions or want to contribute? PRs and issues are welcome!
