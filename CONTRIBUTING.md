@@ -132,4 +132,3 @@ By contributing, you agree that your contributions will be licensed under the [M
 
 Thank you again for helping improve **SyncModelFillable**!  
 Let’s make Laravel development faster and cleaner together 🚀
-```
