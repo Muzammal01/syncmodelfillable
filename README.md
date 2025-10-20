@@ -300,7 +300,6 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for detailed guidelines.
 - Built with ❤️ by **Muzammal**.
 
 
-## 📜 License
+## 📜 License  
 
-This package is open-source software licensed under the (LICENSE).
----
+This package is open-source software licensed under the MIT license.
