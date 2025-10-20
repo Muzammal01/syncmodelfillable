@@ -29,7 +29,7 @@
 Install the package via Composer:
 
 ```bash
-composer require muzammal/syncmodelfillable
+composer require muzammal/syncmodelfillable:v2.x-dev
 ```
 
 (Optional) Publish the configuration file:
